@@ -116,10 +116,13 @@ class MyRequestHandler(BaseHTTPRequestHandler):
 
                 self.send_header('Content-type', formats[format])
                 self.end_headers()
+                if format == 'txt':
+                    self.wfile.write(b)
+                    return
+
+                hwinfo = HWInfo(b)
                 if format == 'json':
                     self.wfile.write('{status: "failure"}')
-                else:
-                    self.wfile.write(b)
 
                 return
 
@@ -145,6 +148,10 @@ class MyRequestHandler(BaseHTTPRequestHandler):
 
         except Exception as e:
             self.send_error(500, 'Exception: %s' % e)
+class HWInfo:
+    def __init__(self, bytes):
+        self.raw = bytes.decode('utf-8')
+        print self.raw
 
 server = HTTPServer(('127.0.0.1', 8000), MyRequestHandler)
 sockinfo = server.socket.getsockname()
