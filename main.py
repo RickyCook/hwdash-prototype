@@ -1,6 +1,6 @@
 #!/usr/bin/python2.7
 
-import sys, os, io, subprocess, traceback, re, unicodedata, json
+import sys, os, io, subprocess, traceback, re, unicodedata, json, shutil
 import StringIO
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 from SimpleHTTPServer import SimpleHTTPRequestHandler
@@ -139,11 +139,8 @@ class MyRequestHandler(BaseHTTPRequestHandler):
                     self.send_error(403, 'Not a file %s' % vpath)
                     return
 
-                with io.open(path, 'r') as f:
-                    b = f.read(1)
-                    while(b):
-                        self.wfile.write(b)
-                        b = f.read(1)
+                with io.open(path, 'rb') as f:
+                    shutil.copyfileobj(f, self.wfile)
 
                 return
 
