@@ -1,6 +1,7 @@
 #!/usr/bin/python2.7
 
-import sys, os, io, subprocess
+import sys, os, io, subprocess, traceback, re, unicodedata
+import StringIO
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 from SimpleHTTPServer import SimpleHTTPRequestHandler
 
@@ -122,6 +123,8 @@ class MyRequestHandler(BaseHTTPRequestHandler):
 
                 hwinfo = HWInfo(b)
                 if format == 'json':
+                    for node in hwinfo.get_nodes():
+                        node.get_attributes()
                     self.wfile.write('{status: "failure"}')
 
                 return
@@ -146,14 +149,70 @@ class MyRequestHandler(BaseHTTPRequestHandler):
             else:
                 self.send_error(404, 'Route Not Found %s' % self.path)
 
-        except Exception as e:
-            self.send_error(500, 'Exception: %s' % e)
+        except:
+            self.send_error(500, 'Exception: %s' % traceback.format_exc())
 class HWInfo:
     def __init__(self, bytes):
         self.rawtext = bytes.decode('utf-8')
+        self.nodes   = None
+    def get_nodes(self):
+        if self.nodes is None:
+            self.do_parse()
+        return self.nodes
+    def do_parse(self):
+        buf = StringIO.StringIO(self.rawtext)
+        self.nodes = []
+        nodetext = ''
+        for line in buf:
+            #
+            # New node
+            #
+            if not line.startswith('  ') and not line.strip() == '':
+                self.nodes.append(HWNode(nodetext))
+                nodetext = ''
+            nodetext += line
+
+        self.nodes.append(HWNode(nodetext))
+
+        return
 class HWNode:
     def __init__(self, nodetext):
-        self.rawtext = nodetext
+        self.rawtext    = nodetext
+        self.index      = None
+        self.name       = None
+        self.created    = None
+        self.attributes = None
+    def get_attributes(self):
+        if self.attributes is None:
+            self.do_parse()
+        return self.attributes
+    def do_parse(self):
+        buf = StringIO.StringIO(self.rawtext)
+        self.attributes = {}
+        createdre = re.compile('^  \[Created at (.+)\]$')
+        for line in buf:
+            #
+            # Node details line or property
+            #
+            if not line.startswith('  ') and not line.strip() == '':
+                self.index, self.name = line.strip().split(': ', 1)
+            elif createdre.match(line):
+                self.created = createdre.match(line).group(1).strip()
+            elif not line.strip() == '':
+                key, value = line.split(':', 1)
+                key = key.strip()
+                value = value.strip()
+                if value == '':
+                    # SECTION
+                else:
+                    # ATTRIBUTE
+                if key in self.attributes:
+                    if not isinstance(self.attributes[key], list):
+                        self.attributes[key] = [self.attributes[key]]
+                    self.attributes[key].append(value)
+                else:
+                    self.attributes[key] = value
+        return
 
 server = HTTPServer(('127.0.0.1', 8000), MyRequestHandler)
 sockinfo = server.socket.getsockname()
