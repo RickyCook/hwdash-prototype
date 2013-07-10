@@ -12,17 +12,113 @@ class MyRequestHandler(BaseHTTPRequestHandler):
                 vpath = '/static/index.htm'
 
             if vpath.startswith('/api/'):
-                apipath = vpath.lstrip('/api')
-                b = subprocess.check_output('/usr/sbin/hwinfo')
+                apipathchunks = vpath.split('/')[2:]
+
+                hwitems = (
+                    'all',
+                    'bios',
+                    'block',
+                    'bluetooth',
+                    'braille',
+                    'bridge',
+                    'camera',
+                    'cdrom',
+                    'chipcard',
+                    'cpu',
+                    'disk',
+                    'dsl',
+                    'dvb',
+                    'fingerprint',
+                    'floppy',
+                    'framebuffer',
+                    'gfx-card',
+                    'hub',
+                    'ide',
+                    'isapnp',
+                    'isdn',
+                    'joystick',
+                    'keyboard',
+                    'memory',
+                    'modem',
+                    'monitor',
+                    'mouse',
+                    'netcard',
+                    'network',
+                    'partition',
+                    'pci',
+                    'pcmcia',
+                    'pcmcia-ctrl',
+                    'pppoe',
+                    'printer',
+                    'scanner',
+                    'scsi',
+                    'smp',
+                    'sound',
+                    'storage-ctrl',
+                    'sys',
+                    'tape',
+                    'tv',
+                    'usb',
+                    'usb-ctrl',
+                    'vbe',
+                    'wlan',
+                    'zip',
+                )
+                groupings = (
+                    'by-index',
+                )
+                formats = {
+                    'txt': 'text/plain',
+                    'json': 'application/json',
+                }
+
+                format = 'txt'
+                hwitem = 'all'
+                grouping = 'by-index'
+
+                #
+                # Set format (before count for cleaner error output)
+                #
+                if apipathchunks[-1].find('.') >= 0:
+                    apipathchunks[-1], format = apipathchunks[-1].rsplit('.', 2)
+
+                #
+                # Count args
+                #
+                if len(apipathchunks) > 2:
+                    self.send_error(404, 'Too many arguments %s' % apipathchunks)
+                    return
+
+                #
+                # Validate/set chunks
+                #
+                for chunk in apipathchunks:
+                    if chunk in hwitems:
+                        hwitem = chunk
+                    elif chunk in groupings:
+                        grouping = chunk
+                    else:
+                        self.send_error(404, 'Invalid argument %s' % chunk)
+                        return
+                if not format in formats.keys():
+                    self.send_error(404, 'Invalid format %s' % format)
+                    return
+
+                #
+                # Can't do anything but basic grouping for txt format
+                #
+                if format == 'txt' and not grouping == 'by-index':
+                    self.send_error(404, '%s grouping is unavailable for txt format. Only by-index is available' % format)
+                    return
+
+                b = subprocess.check_output(['/usr/sbin/hwinfo', '--%s' % hwitem])
                 self.send_response(200)
 
-                if vpath.endswith('.json'):
-                    self.send_header('Content-type', 'application/json')
-                    self.end_headers()
+                self.send_header('Content-type', formats[format])
+                self.end_headers()
+                if format == 'json':
                     self.wfile.write('{status: "failure"}')
                 else:
-                    self.send_header('Content-type', 'text/plain')
-                    self.end_headers()
                     self.wfile.write(b)
 
                 return
