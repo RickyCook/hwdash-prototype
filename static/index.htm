@@ -1,7 +1,24 @@
 <html>
 <head>
+	<script src="//cdnjs.cloudflare.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+	<script src="//cdnjs.cloudflare.com/ajax/libs/d3/3.2.2/d3.v3.min.js"></script>
+	<script>
+		$(document).ready(function(){
+			tree = d3.layout.tree();
+			$.getJSON('/api/all.json', {}, function(data) {
+				ul = $('#names')
+				for (var i = 0; i < data.nodes.length; i++) {
+					ul.append('<li>' + data.nodes[i].name + '</li>')
+				}
+			});
+		})
+	</script>
 </head>
 <body>
-<h1>header</h1>
+	<h1>Names</h1>
+	<ul id="names">
+	</ul>
+	<h1>Explore</h1>
+	<div id="graph"></div>
 </body>
 </html>
