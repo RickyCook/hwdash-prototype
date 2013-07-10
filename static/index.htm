@@ -51,8 +51,41 @@
 			root.name = 'nodes';
 			root.children = [];
 
+			function graphify_node(node) {
+				var children = [];
+				for (attrKey in node.attributes) {
+					var me, attrValue = node.attributes[attrKey];
+					if (typeof attrValue === 'string') {
+						me = graphify_attr(attrKey, attrValue);
+					} else {
+						me = graphify_section(attrKey, attrValue);
+					}
+					children[children.length] = me;
+				}
+				return {
+					name: node.name,
+					children: children,
+				}
+			}
+			function graphify_attr(name, val) {
+				return {
+					name: name + ': ' + val,
+				}
+			}
+			function graphify_section(name, section) {
+				var children = [];
+				for (attrKey in section) {
+					var attrValue = section[attrKey];
+					children[children.length] = graphify_attr(attrKey, attrValue);
+				}
+				return {
+					name: name,
+					children: children,
+				}
+			}
+
 			json.nodes.forEach(function(v) {
-				root.children[root.children.length] = {name: v.name};
+				root.children[root.children.length] = graphify_node(v);
 			})
 
 			function toggleAll(d) {
