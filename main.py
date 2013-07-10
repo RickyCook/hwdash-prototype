@@ -1,6 +1,6 @@
 #!/usr/bin/python2.7
 
-import sys, os, io, subprocess, traceback, re, unicodedata
+import sys, os, io, subprocess, traceback, re, unicodedata, json
 import StringIO
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 from SimpleHTTPServer import SimpleHTTPRequestHandler
@@ -123,9 +123,10 @@ class MyRequestHandler(BaseHTTPRequestHandler):
 
                 hwinfo = HWInfo(b)
                 if format == 'json':
-                    for node in hwinfo.get_nodes():
-                        node.get_attributes()
-                    self.wfile.write('{status: "failure"}')
+                    # for node in hwinfo.get_nodes():
+                    #     node.get_attributes()
+                    # self.wfile.write('{status: "failure"}')
+                    self.wfile.write(json.dumps(hwinfo.as_dict()))
 
                 return
 
@@ -175,6 +176,11 @@ class HWInfo:
         self.nodes.append(HWNode(nodetext))
 
         return
+    def as_dict(self):
+        return {
+            'nodes': [node.as_dict() for node in self.get_nodes()],
+        }
+
 class HWNode:
     def __init__(self, nodetext):
         self.rawtext    = nodetext
@@ -241,6 +247,15 @@ class HWNode:
                     else:
                         section[key] = value
         return
+
+    def as_dict(self):
+        self.get_attributes()
+        return {
+            'index': self.index,
+            'name': self.name,
+            'created': self.created,
+            'attributes': self.attributes,
+        }
 
 server = HTTPServer(('127.0.0.1', 8000), MyRequestHandler)
 sockinfo = server.socket.getsockname()
