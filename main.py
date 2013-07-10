@@ -150,8 +150,10 @@ class MyRequestHandler(BaseHTTPRequestHandler):
             self.send_error(500, 'Exception: %s' % e)
 class HWInfo:
     def __init__(self, bytes):
-        self.raw = bytes.decode('utf-8')
-        print self.raw
+        self.rawtext = bytes.decode('utf-8')
+class HWNode:
+    def __init__(self, nodetext):
+        self.rawtext = nodetext
 
 server = HTTPServer(('127.0.0.1', 8000), MyRequestHandler)
 sockinfo = server.socket.getsockname()
