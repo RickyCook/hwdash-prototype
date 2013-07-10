@@ -190,6 +190,7 @@ class HWNode:
         buf = StringIO.StringIO(self.rawtext)
         self.attributes = {}
         createdre = re.compile('^  \[Created at (.+)\]$')
+        currentsection = None
         for line in buf:
             #
             # Node details line or property
@@ -200,18 +201,45 @@ class HWNode:
                 self.created = createdre.match(line).group(1).strip()
             elif not line.strip() == '':
                 key, value = line.split(':', 1)
+
+                #
+                # Reset section if not indented
+                #
+                if not key.startswith('    '):
+                    currentsection = None
+
+                #
+                # Strip whitespace
+                #
                 key = key.strip()
                 value = value.strip()
+
+                #
+                # No values are sections
+                #
                 if value == '':
                     # SECTION
+                    currentsection = key
+                    self.attributes[key] = {}
                 else:
                     # ATTRIBUTE
-                if key in self.attributes:
-                    if not isinstance(self.attributes[key], list):
-                        self.attributes[key] = [self.attributes[key]]
-                    self.attributes[key].append(value)
-                else:
-                    self.attributes[key] = value
+
+                    #
+                    # What section? (root if none)
+                    #
+                    section = self.attributes
+                    if currentsection:
+                        section = section[currentsection]
+
+                    #
+                    # Create/append to list if required
+                    #
+                    if key in section:
+                        if not isinstance(section[key], list):
+                            section[key] = [section[key]]
+                        section[key].append(value)
+                    else:
+                        section[key] = value
         return
 
 server = HTTPServer(('127.0.0.1', 8000), MyRequestHandler)
