@@ -12,14 +12,17 @@ class MyRequestHandler(BaseHTTPRequestHandler):
             vpathchunks = list(pathchunks)
 
             validroots = ('api', 'static')
-            if len(vpathchunks) == 0 or not vpathchunks[0] in validroots:
+            if len(vpathchunks) == 0 or vpathchunks[0] in ('index.htm','index.html'):
+                vpathchunks = ('static', 'index.htm')
+
+            if not vpathchunks[0] in validroots:
                 chunkinfo = self.get_chunk_info(vpathchunks)
                 if not chunkinfo:
                     return
                 if chunkinfo['format'] in ('html', 'htm'):
                     vpathchunks = ('static', 'index.htm')
 
-            if vpathchunks[0] == 'api':
+            if len(vpathchunks) and vpathchunks[0] == 'api':
                 chunkinfo = self.get_chunk_info(vpathchunks[1:])
                 if not chunkinfo:
                     return
@@ -42,7 +45,7 @@ class MyRequestHandler(BaseHTTPRequestHandler):
 
                 return
 
-            elif vpathchunks[0] == 'static':
+            elif len(vpathchunks) and vpathchunks[0] == 'static':
                 vpath = '/'.join(vpathchunks)
                 abspath = os.path.abspath('./' + vpath)
                 if not abspath.startswith(os.getcwd() + '/static/'):
