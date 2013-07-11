@@ -44,7 +44,9 @@
 			.append("svg:g")
 			.attr("transform", "translate(" + m[3] + "," + m[0] + ")");
 
-		d3.json("/api/all.json", function(json) {
+		relApiUrl = document.location.pathname.replace(/\.[^.]+$/, '')
+		apiUrl = '/api/' + relApiUrl + '.json'
+		d3.json(apiUrl, function(json) {
 			root = {};
 			root.x0 = h/2;
 			root.y0 = 0;

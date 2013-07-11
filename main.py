@@ -8,121 +8,33 @@ from SimpleHTTPServer import SimpleHTTPRequestHandler
 class MyRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         try:
-            vpath = self.path
-            if self.path in ('/', '/index.htm'):
-                vpath = '/static/index.htm'
+            pathchunks = filter(None, self.path.split('/'))
+            vpathchunks = list(pathchunks)
 
-            if vpath.startswith('/api/'):
-                apipathchunks = vpath.split('/')[2:]
+            validroots = ('api', 'static')
+            if len(vpathchunks) == 0 or not vpathchunks[0] in validroots:
+                chunkinfo = self.get_chunk_info(vpathchunks)
+                if not chunkinfo:
+                    return
+                if chunkinfo['format'] in ('html', 'htm'):
+                    vpathchunks = ('static', 'index.htm')
 
-                hwitems = (
-                    'all',
-                    'bios',
-                    'block',
-                    'bluetooth',
-                    'braille',
-                    'bridge',
-                    'camera',
-                    'cdrom',
-                    'chipcard',
-                    'cpu',
-                    'disk',
-                    'dsl',
-                    'dvb',
-                    'fingerprint',
-                    'floppy',
-                    'framebuffer',
-                    'gfx-card',
-                    'hub',
-                    'ide',
-                    'isapnp',
-                    'isdn',
-                    'joystick',
-                    'keyboard',
-                    'memory',
-                    'modem',
-                    'monitor',
-                    'mouse',
-                    'netcard',
-                    'network',
-                    'partition',
-                    'pci',
-                    'pcmcia',
-                    'pcmcia-ctrl',
-                    'pppoe',
-                    'printer',
-                    'scanner',
-                    'scsi',
-                    'smp',
-                    'sound',
-                    'storage-ctrl',
-                    'sys',
-                    'tape',
-                    'tv',
-                    'usb',
-                    'usb-ctrl',
-                    'vbe',
-                    'wlan',
-                    'zip',
-                )
-                groupings = (
-                    'by-index',
-                )
-                formats = {
-                    'txt': 'text/plain',
-                    'json': 'application/json',
-                }
-
-                format = 'txt'
-                hwitem = 'all'
-                grouping = 'by-index'
-
-                #
-                # Set format (before count for cleaner error output)
-                #
-                if apipathchunks[-1].find('.') >= 0:
-                    apipathchunks[-1], format = apipathchunks[-1].rsplit('.', 2)
-
-                #
-                # Count args
-                #
-                if len(apipathchunks) > 2:
-                    self.send_error(404, 'Too many arguments %s' % apipathchunks)
+            if vpathchunks[0] == 'api':
+                chunkinfo = self.get_chunk_info(vpathchunks[1:])
+                if not chunkinfo:
                     return
 
-                #
-                # Validate/set chunks
-                #
-                for chunk in apipathchunks:
-                    if chunk in hwitems:
-                        hwitem = chunk
-                    elif chunk in groupings:
-                        grouping = chunk
-                    else:
-                        self.send_error(404, 'Invalid argument %s' % chunk)
-                        return
-                if not format in formats.keys():
-                    self.send_error(404, 'Invalid format %s' % format)
-                    return
-
-                #
-                # Can't do anything but basic grouping for txt format
-                #
-                if format == 'txt' and not grouping == 'by-index':
-                    self.send_error(404, '%s grouping is unavailable for txt format. Only by-index is available' % format)
-                    return
-
-                b = subprocess.check_output(['/usr/sbin/hwinfo', '--%s' % hwitem])
+                b = subprocess.check_output(['/usr/sbin/hwinfo', '--%s' % chunkinfo['hwitem']])
                 self.send_response(200)
 
-                self.send_header('Content-type', formats[format])
+                self.send_header('Content-type', chunkinfo['formatmime'])
                 self.end_headers()
-                if format == 'txt':
+                if chunkinfo['format'] == 'txt':
                     self.wfile.write(b)
                     return
 
                 hwinfo = HWInfo(b)
-                if format == 'json':
+                if chunkinfo['format'] == 'json':
                     # for node in hwinfo.get_nodes():
                     #     node.get_attributes()
                     # self.wfile.write('{status: "failure"}')
@@ -130,16 +42,17 @@ class MyRequestHandler(BaseHTTPRequestHandler):
 
                 return
 
-            if vpath.startswith('/static/'):
-                path = os.path.abspath('./' + vpath)
-                if not path.startswith(os.getcwd() + '/static/'):
+            elif vpathchunks[0] == 'static':
+                vpath = '/'.join(vpathchunks)
+                abspath = os.path.abspath('./' + vpath)
+                if not abspath.startswith(os.getcwd() + '/static/'):
                     self.send_error(403, 'Outside of static directory %s' % vpath)
                     return
-                if not os.path.isfile(path):
+                if not os.path.isfile(abspath):
                     self.send_error(403, 'Not a file %s' % vpath)
                     return
 
-                with io.open(path, 'rb') as f:
+                with io.open(abspath, 'rb') as f:
                     shutil.copyfileobj(f, self.wfile)
 
                 return
@@ -149,6 +62,112 @@ class MyRequestHandler(BaseHTTPRequestHandler):
 
         except:
             self.send_error(500, 'Exception: %s' % traceback.format_exc())
+    def get_chunk_info(self, chunks):
+        hwitems = (
+            'all',
+            'bios',
+            'block',
+            'bluetooth',
+            'braille',
+            'bridge',
+            'camera',
+            'cdrom',
+            'chipcard',
+            'cpu',
+            'disk',
+            'dsl',
+            'dvb',
+            'fingerprint',
+            'floppy',
+            'framebuffer',
+            'gfx-card',
+            'hub',
+            'ide',
+            'isapnp',
+            'isdn',
+            'joystick',
+            'keyboard',
+            'memory',
+            'modem',
+            'monitor',
+            'mouse',
+            'netcard',
+            'network',
+            'partition',
+            'pci',
+            'pcmcia',
+            'pcmcia-ctrl',
+            'pppoe',
+            'printer',
+            'scanner',
+            'scsi',
+            'smp',
+            'sound',
+            'storage-ctrl',
+            'sys',
+            'tape',
+            'tv',
+            'usb',
+            'usb-ctrl',
+            'vbe',
+            'wlan',
+            'zip',
+        )
+        groupings = (
+            'by-index',
+        )
+        formats = {
+            'txt': 'text/plain',
+            'json': 'application/json',
+            'htm': 'text/html',
+            'html': 'text/html',
+        }
+
+        format = 'txt'
+        hwitem = 'all'
+        grouping = 'by-index'
+
+        #
+        # Set format (before count for cleaner error output)
+        #
+        if len(chunks) and chunks[-1].find('.') >= 0:
+            chunks[-1], format = chunks[-1].rsplit('.', 2)
+
+        #
+        # Count args
+        #
+        if len(chunks) > 2:
+            self.send_error(404, 'Too many arguments %s' % chunks)
+            return False
+
+        #
+        # Validate/set chunks
+        #
+        for chunk in chunks:
+            if chunk in hwitems:
+                hwitem = chunk
+            elif chunk in groupings:
+                grouping = chunk
+            else:
+                self.send_error(404, 'Invalid argument %s' % chunk)
+                return
+        if not format in formats.keys():
+            self.send_error(404, 'Invalid format %s' % format)
+            return False
+
+        #
+        # Can't do anything but basic grouping for txt format
+        #
+        if format == 'txt' and not grouping == 'by-index':
+            self.send_error(404, '%s grouping is unavailable for txt format. Only by-index is available' % format)
+            return False
+
+        return {
+            'format':     format,
+            'formatmime': formats[format],
+            'hwitem':     hwitem,
+            'grouping':   grouping,
+        }
 class HWInfo:
     def __init__(self, bytes):
         self.rawtext = bytes.decode('utf-8')
